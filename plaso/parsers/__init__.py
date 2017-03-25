@@ -13,6 +13,7 @@ from plaso.parsers import custom_destinations
 from plaso.parsers import docker
 from plaso.parsers import dpkg
 from plaso.parsers import esedb
+from plaso.parsers import exim
 from plaso.parsers import filestat
 from plaso.parsers import firefox_cache
 from plaso.parsers import hachoir
