@@ -31,10 +31,6 @@ class Exim4LineEventData(events.EventData):
     super(Exim4LineEventData, self).__init__(data_type=data_type)
     self.body = None
 
-  def __init__(self):
-    """Initializes event data."""
-    self.body = None
-
 class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
   """Parses exim4 formatted log files"""
   NAME = u'exim4'
@@ -135,14 +131,14 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
     plugin_object = self._plugin_objects_by_reporter.get(
         structure.reporter, None)
     if plugin_object:
-        attributes = {
-            u'body': structure.body}
-        try:
-          # TODO: pass event_data instead of attributes.
-          plugin_object.Process(mediator, timestamp, attributes)
+      attributes = {
+          u'body': structure.body}
+      try:
+        # TODO: pass event_data instead of attributes.
+        plugin_object.Process(mediator, timestamp, attributes)
 
-        except errors.WrongPlugin:
-          plugin_object = None
+      except errors.WrongPlugin:
+        plugin_object = None
 
     if not plugin_object:
       event = time_events.TimestampEvent(
