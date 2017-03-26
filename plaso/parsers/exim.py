@@ -38,7 +38,7 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
       [c for c in pyparsing.printables if c not in [u':', u'>']])
 
   _PYPARSING_COMPONENTS = {
-      u'year': text_parser.PyparsingConstants.YEAR.setResultsName(
+      u'year': text_parser.PyparsingConstants.FOUR_DIGITS.setResultsName(
           u'year'),
       u'month': text_parser.PyparsingConstants.TWO_DIGITS.setResultsName(
           u'month'),
