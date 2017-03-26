@@ -134,7 +134,7 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
     event_data.body = structure.body
     plugin_object = self._plugin_objects_by_reporter.get(
         structure.reporter, None)
-      if plugin_object:
+    if plugin_object:
         attributes = {
             u'body': structure.body}
         try:
