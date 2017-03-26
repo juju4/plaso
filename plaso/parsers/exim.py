@@ -4,17 +4,36 @@ import re
 
 import pyparsing
 
-from plaso.containers import text_events
+from plaso.containers import events
+from plaso.containers import time_events
 from plaso.lib import errors
+from plaso.lib import eventdata
 from plaso.lib import timelib
 from plaso.parsers import manager
 from plaso.parsers import text_parser
 
 
-class Exim4LineEvent(text_events.TextEvent):
-  """Convenience class for a exim4 line event."""
+class Exim4LineEventData(events.EventData):
+  """Exim4 line event data.
+
+  Attributes:
+    body (str): message body.
+  """
+
   DATA_TYPE = u'exim4:line'
 
+  def __init__(self, data_type=DATA_TYPE):
+    """Initializes an event data attribute container.
+
+    Args:
+      data_type (Optional[str]): event data type indicator.
+    """
+    super(Exim4LineEventData, self).__init__(data_type=data_type)
+    self.body = None
+
+  def __init__(self):
+    """Initializes event data."""
+    self.body = None
 
 class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
   """Parses exim4 formatted log files"""
@@ -24,18 +43,13 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
 
   _ENCODING = u'utf-8'
 
-  _VERIFICATION_REGEX = re.compile(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s')
-
   _plugin_classes = {}
 
-  # The reporter and facility fields can contain any printable character, but
-  # to allow for processing of syslog formats that delimit the reporter and
-  # facility with printable characters, we remove certain common delimiters
-  # from the set of printable characters.
-  _REPORTER_CHARACTERS = u''.join(
-      [c for c in pyparsing.printables if c not in [u':', u'[', u'<']])
-  _FACILITY_CHARACTERS = u''.join(
-      [c for c in pyparsing.printables if c not in [u':', u'>']])
+  _BODY_CONTENT = (r'.*?(?=($|\n\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}))')
+
+  _VERIFICATION_REGEX = \
+      re.compile(r'^\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}\s' +
+                 _BODY_CONTENT)
 
   _PYPARSING_COMPONENTS = {
       u'year': text_parser.PyparsingConstants.FOUR_DIGITS.setResultsName(
@@ -50,8 +64,7 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
           u'minute'),
       u'second': text_parser.PyparsingConstants.TWO_DIGITS.setResultsName(
           u'second'),
-      u'body': pyparsing.Regex(
-          r'.*?(?=($|\n\w{3}\s+\d{1,2}\s\d{2}:\d{2}:\d{2}))', re.DOTALL).
+      u'body': pyparsing.Regex(_BODY_CONTENT, re.DOTALL).
                setResultsName(u'body')
   }
 
@@ -105,32 +118,36 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
       structure (pyparsing.ParseResults): elements parsed from the file.
 
     Raises:
-      UnableToParseFile: if an unsupported key is provided.
+      ParseError: when the structure type is unknown.
     """
     if key not in self._SUPPORTED_KEYS:
-      raise errors.UnableToParseFile(u'Unsupported key: {0:s}'.format(key))
+      raise errors.ParseError(
+          u'Unable to parse record, unknown structure: {0:s}'.format(key))
 
     timestamp = timelib.Timestamp.FromTimeParts(
         year=structure.year, month=structure.month, day=structure.day,
         hour=structure.hour, minutes=structure.minute,
         seconds=structure.second, timezone=mediator.timezone)
 
-    reporter = structure.reporter
-    attributes = {
-        u'body': structure.body}
+    plugin_object = None
+    event_data = Exim4LineEventData()
+    event_data.body = structure.body
+    plugin_object = self._plugin_objects_by_reporter.get(
+        structure.reporter, None)
+      if plugin_object:
+        attributes = {
+            u'body': structure.body}
+        try:
+          # TODO: pass event_data instead of attributes.
+          plugin_object.Process(mediator, timestamp, attributes)
 
-    plugin_object = self._plugin_objects_by_reporter.get(reporter, None)
+        except errors.WrongPlugin:
+          plugin_object = None
+
     if not plugin_object:
-      event_object = Exim4LineEvent(timestamp, 0, attributes)
-      mediator.ProduceEvent(event_object)
-
-    else:
-      try:
-        plugin_object.Process(mediator, timestamp, attributes)
-
-      except errors.WrongPlugin:
-        event_object = Exim4LineEvent(timestamp, 0, attributes)
-        mediator.ProduceEvent(event_object)
+      event = time_events.TimestampEvent(
+          timestamp, eventdata.EventTimestamp.WRITTEN_TIME)
+      mediator.ProduceEventWithEventData(event, event_data)
 
   def VerifyStructure(self, unused_mediator, line):
     """Verifies that this is a exim4-formatted file.
