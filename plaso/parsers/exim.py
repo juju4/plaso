@@ -69,7 +69,7 @@ class Exim4Parser(text_parser.PyparsingSingleLineTextParser):
       _PYPARSING_COMPONENTS[u'body'] + pyparsing.lineEnd())
 
   LINE_STRUCTURES = [
-      (u'exim4_line', _EXIM4_LINE) ]
+      (u'exim4_line', _EXIM4_LINE)]
 
   _SUPPORTED_KEYS = frozenset([key for key, _ in LINE_STRUCTURES])
 
